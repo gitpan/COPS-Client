@@ -18,7 +18,5 @@ examples/PacketCaptures/gate_delete.cap
 examples/PacketCaptures/gate_info.cap 
 examples/PacketCaptures/gate_set.cap 
 examples/PacketCaptures/gate_synch.cap
-t/00-load.t
-t/pod-coverage.t
-t/pod.t
+t/64bitTest.t
 META.yml                                 Module meta-data (added by MakeMaker)
