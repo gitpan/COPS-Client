@@ -12,11 +12,11 @@ COPS::Client - COPS Protocol - Packet Cable Client
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 SYNOPSIS
 
@@ -99,6 +99,8 @@ There are no exports.
     gate_specification_add
     classifier_add
     envelope_add
+    rks_set
+    decode_radius_attribute
     volume_set
     timebase_set
     opaque_set
@@ -471,6 +473,120 @@ the data handling function which gets called if a RTP message is received.
     Class Name (this should be configured on the CMTS already) and it has been named as
     S_down. If the specified ServiceClassName is incorrect or does not correspond to the
     direction specified an error will be returned.
+
+=head2 rks_set
+
+    This function add a Reporting server to the COPS request. You can have a primary and
+    secondary Reporting server and events, such as volume quota reached, time reached should
+    be report to the Reporting server configured. All Reporting server messages are via 
+    the RADIUS protocol. This rks_set only supports IPV4 addressing.
+
+    As part of a RKS request you can also specify unique indentifiers that will be sent in
+    the Reporting request for each specific gate created. The Gate ID is not sent in the 
+    reporting request so some external management system will need to track these.
+
+    The variables you can set in an RKS configuration are as follows
+
+    PRKS_IPAddress                 - This is the PRIMARY (PRKS) reporting server IP address.
+                                     It should be specified as an IP, hostnames are not
+                                     supported and only IPV4 is available.
+
+    PRKS_Port                      - This is the Port that reporting messages are sent to.
+                                     The protocol used is RADIUS so the standard 1813 port
+                                     should be used if a default RADIUS server configuration
+                                     is to be used.
+
+    PRKS_Flags                     - Ignore, further work is required, however if you
+                                     understand this usage it is available to be set.
+
+    SRKS_IPAddress                 - This is the SECONDARY (SRKS) reporting server IP address.
+                                     This is ONLY used if the primary is considered down.
+                                     It should be specified as an IP, hostnames are not
+                                     supported and only IPV4 is available.
+
+    SRKS_Port                      - This is the Port that reporting messages are sent to
+                                     for the SECONDARY reporting server.
+
+    SRKS_Flags                     - Ignore, further work is required, however if you
+                                     understand this usage it is available to be set.
+
+    
+    Billing Correlation Identification
+
+    BCID_TimeStamp                 - This is a 32bit number and EPOCH is a good use here.
+                                  
+    BCID_ElementID                 - This is an eight (8) character entry and should be
+                                     alphanumeric only to be supported by all vendors.
+
+    BCID_TimeZone                  - This is an eight(8) character entry and specifies
+                                     the timezone of the entry. 
+
+    BCID_EventCounter              - This is a 32bit number and can be anything within that
+                                     range. This could be an auto-increment in a table, so
+                                     allowing GateID to be linked back later.
+
+    An example of use would be
+
+        my $timer=time();
+
+        $cops_client->rks_set (
+                        [
+                        PRKS_IPAddress          => '192.168.50.2',
+                        PRKS_Port               => 2000,
+                        PRKS_Flags              => 0,
+                        SRKS_IPAddress          => 0,
+                        SRKS_Port               => 0,
+                        SRKS_Flags              => 0,
+                        BCID_TimeStamp          => $timer,
+                        BCID_ElementID          => '99999999',
+                        BCID_TimeZone           => '00000000',
+                        BCID_EventCounter       => 12347890
+                        ]
+                        );
+
+    You can omit fields which are not used and they will default to 0, but for completeness
+    are included above.
+ 
+=head2 decode_radius_attribute
+
+    This function takes the output from FreeRadius 2.1.9 and expands it where possible. The
+    supported attributes are
+
+         CableLabs-Event-Message
+         CableLabs-QoS-Descriptor
+
+    When called this function returns the converted attribute into a hash of the attributes
+    found and decoded.
+
+    An example of use would be
+
+    my %return_data;
+
+    $cops_client->decode_radius_attribute("CableLabs-Event-Message",
+        "
+        0x00034c163b873939393939393939303030303030303000bc69f2000700022020203232323200312b3030303030300000002b32303130303631343135313233382e3032330000000080000400",
+        \%return_data);
+
+    Note the 0x is required at the beginning so validity checking will pass.
+
+    The %return_data has should then contain the following keys with values.
+
+        EventMessageVersionID        -  3
+        TimeZone                     -  1+000000
+        Status                       -  0
+        AttributeCount               -  4
+        SequenceNumber               -  43
+        BCID_TimeZone                -  00000000
+        EventObject                  -  0
+        ElementType                  -  2
+        EventMessageType             -  7
+        BCID_Timestamp               -  1276525447
+        BCID_ElementID               -  99999999
+        BCID_EventCounter            -  12347890
+        EventMessageTypeName         -  QoS_Reserve
+        Priority                     -  128
+        ElementID                    -  '   2222'
+        EventTime                    -  20100614151238.023
 
 =head2 volume_set
 

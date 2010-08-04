@@ -1,5 +1,10 @@
 Revision history for COPS-Client
 
+0.03    4th August 2010
+        Added
+	rks_set
+	decode_radius_attribute
+
 0.02	15th July 2010
 	Completely made a mess of the test routines and left in tests
 	which would fail on a fresh system and omitted a 64bit test

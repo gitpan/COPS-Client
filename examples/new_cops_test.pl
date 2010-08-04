@@ -3,8 +3,6 @@
 use strict;
 use COPS::Client;
 
-# ServerIP => '80.194.79.221',
-
 my $cmts_ip = $ARGV[0];
 my $action=$ARGV[1];
 my $id = $ARGV[2];
@@ -24,7 +22,6 @@ my $cops_client = new COPS::Client (
 # We send a connect message to the COPS server
 if ( $cops_client->connect() )
 	{
-	my $debug=3;
 
 	if ( $action=~/^set$/i )
 	{
@@ -60,25 +57,6 @@ if ( $cops_client->connect() )
 			Classifier_State => 1
 			]
 			);
-
-#	$cops_client->classifier_add(
-#			[
-#			Classifier_Type		=> 'Classifier',
-#			Classifier_Priority => 64,
-#			Classifier_SourceIP => "10.1.1.1",
-#			Classifier_ClassifierID => 100
-#			]
-#			);
-#
-#	$cops_client->classifier_add(
-#			[
-#			Classifier_Type		=> 'Classifier',
-#			Classifier_Priority => 64,
-#			Classifier_SourceIP => "20.1.1.1",
-#			Classifier_ClassifierID => 100
-#			]
-#			);
-
 
 	$cops_client->envelope_add (
 			[
