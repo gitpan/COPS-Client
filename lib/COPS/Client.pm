@@ -12,11 +12,11 @@ COPS::Client - COPS Protocol - Packet Cable Client
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 SYNOPSIS
 
@@ -1031,6 +1031,13 @@ while ( $self->check_data_handles && $self->{_GLOBAL}{'ERROR'}!~/not connected/i
 				my $subscriber_command = $self->encode_sub_subscriber_id(
 								$self->subscriber_type(),$subscriber_ip);
 
+				
+				my $gate_id;
+				if ( $self->get_gate_id() )
+					{
+					$gate_id = $self->encode_gate_id ();
+					}
+
 				my $total_object;
 
 				$total_object = $self->gate_specification_get();
@@ -1059,6 +1066,7 @@ while ( $self->check_data_handles && $self->{_GLOBAL}{'ERROR'}!~/not connected/i
 					$gate_command.
 					$amid_command.
 					$subscriber_command.
+					$gate_id.
 					$total_object
 					);
 
@@ -3337,7 +3345,7 @@ L<http://search.cpan.org/dist/COPS-Client/>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2010 shamrock@cpan.org, all rights reserved.
+Copyright 2012 shamrock@cpan.org, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

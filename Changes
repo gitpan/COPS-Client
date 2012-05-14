@@ -1,5 +1,12 @@
 Revision history for COPS-Client
 
+0.04	14th May 2012
+	Added support for
+
+		6.5.6 Procedures for Modifying a Gate
+
+		Thanks to a patch from Ivan Prostran
+		
 0.03    4th August 2010
         Added
 	rks_set

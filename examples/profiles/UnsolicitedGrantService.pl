@@ -6,7 +6,7 @@ use COPS::Client;
 my $cops_client = new COPS::Client (
                         [
                         VendorID => 'COPS Client',
-                        ServerIP => '80.194.79.223',
+                        ServerIP => '192.168.1.1',
                         ServerPort => '3918',
                         Timeout => 2,
 			DataHandler => \&display_data
