@@ -12,11 +12,11 @@ COPS::Client - COPS Protocol - Packet Cable Client
 
 =head1 VERSION
 
-Version 0.04
+Version 0.05
 
 =cut
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 SYNOPSIS
 
@@ -586,7 +586,7 @@ the data handling function which gets called if a RTP message is received.
         EventMessageTypeName         -  QoS_Reserve
         Priority                     -  128
         ElementID                    -  '   2222'
-        EventTime                    -  20100614151238.023
+        EventTime                    -  20121019163303.51
 
 =head2 volume_set
 
@@ -594,18 +594,11 @@ the data handling function which gets called if a RTP message is received.
     may not stop traffic flowing through the gate when the limit is reached, implementation
     dependent, however should send a RKS notification.
 
-    The only attribute for this function is
-
-        VolumeLimit                  - This is a 64bit number and is the number of bytes
-                                       allowed through the gate.
+    This function just takes the Volume in the number of bytes, 64 bit number.
 
     An example of use would be
 
-    $cops_client->volume_set(
-        [
-        VolumeLimit => 3000000000
-        ]
-        );
+    $cops_client->volume_set( 3000000000 );
    
     This would set the volume to 3Gigabytes.
 
@@ -615,18 +608,11 @@ the data handling function which gets called if a RTP message is received.
     not stop traffifc flowing through the gate when the limit is reached, implementation
     dependent, however should sent a RKS notification.
 
-    The only attribute for this function is
+    This function just takes the time in seconds , 32bit number.
         
-        TimeLimit                    - This is a 32bit number and is the number of seconds
-                                       the gate should remain active.
-
     An example of use would be
 
-    $cops_client->timebase_set(
-        [
-        TimeLimit => 60
-        ]
-        );
+    $cops_client->timebase_set( 60 );
 
     This would set the time limit to 60 seconds.
 
@@ -1032,7 +1018,7 @@ while ( $self->check_data_handles && $self->{_GLOBAL}{'ERROR'}!~/not connected/i
 								$self->subscriber_type(),$subscriber_ip);
 
 				
-				my $gate_id;
+				my $gate_id = "";
 				if ( $self->get_gate_id() )
 					{
 					$gate_id = $self->encode_gate_id ();
@@ -1045,14 +1031,32 @@ while ( $self->check_data_handles && $self->{_GLOBAL}{'ERROR'}!~/not connected/i
 				$total_object.= $self->classifier_get();
 				$total_object.= $self->rks_get();
 
-				if ( $self->volume_get() )
+				if ( length($self->volume_get())>0 )
 					{
+					if ( $self->{_GLOBAL}{'DEBUG'}> 5 )
+						{
+						print "Volume set adding in object.\n";
+						print "Object size before is '".length($total_object)."'\n";
+						}
 					$total_object.= $self->volume_get();
+					if ( $self->{_GLOBAL}{'DEBUG'}> 5 )
+						{
+						print "Object size after is '".length($total_object)."'\n";
+						}
 					}
 
-				if ( $self->timebase_get() )
+				if ( length($self->timebase_get())>0 )
 					{
+					if ( $self->{_GLOBAL}{'DEBUG'}> 5 )
+						{
+						print "Timebase set adding in object.\n";
+						print "Object size before is '".length($total_object)."'\n";
+						}
 					$total_object.= $self->timebase_get();
+					if ( $self->{_GLOBAL}{'DEBUG'}> 5 )
+						{
+						print "Object size after is '".length($total_object)."'\n";
+						}
 					}
 
                                 if ( $self->opaque_get() )
@@ -1134,7 +1138,7 @@ while ( $self->check_data_handles && $self->{_GLOBAL}{'ERROR'}!~/not connected/i
 
 			if ( $self->get_command()=~/^synch$/i )
 				{
-				print "Entere SYNC HERE!!!!!!\n" if $self->{_GLOBAL}{'DEBUG'}>0;
+				print "Enter SYNC HERE!!!!!!\n" if $self->{_GLOBAL}{'DEBUG'}>0;
 				my $subscriber_ip=$self->subscriber_get();
 				my $handle_object = $self->encode_handle_object($self->{_GLOBAL}{'message_client_handle'});
 				my $context_object = $self->encode_context_object( 8, 0 );
@@ -1512,8 +1516,23 @@ sub encode_time_limit
 my ( $self ) = shift;
 my ( $data ) = shift;
 my ( $packed ) = "";
+if ( $self->{_GLOBAL}{'DEBUG'}> 4 )
+        {
+	print "Encoder time set to '".$data."'\n";
+	}
+
 $packed = pack("CC",10,1);
 $packed .= pack("N",$data);
+if ( $self->{_GLOBAL}{'DEBUG'}> 4 )
+	{
+	print "Encoder Time packing \n";
+	for($a=0;$a<length($packed);$a++)
+		{
+		printf("%02x-", ord(substr($packed,$a,2)));
+		}
+	print "\n";
+	}
+
 my ( $length ) = pack("n",(length($packed)+2));
 return $length.$packed;
 }
@@ -1576,9 +1595,18 @@ if ( $self->{_GLOBAL}{'DEBUG'}>4 )
         print "\n";
         }
 
-
+if ( $self->{_GLOBAL}{'DEBUG'}>4 )
+	{
+	print "Length of complete envelope is '".length($packed)."'\n";
+	}
 
 my ( $length ) = pack("n",(length($packed)+2));
+
+if ( $self->{_GLOBAL}{'DEBUG'}>4 )
+	{
+	print "Header attached to envelope is '".length($length)."'\n";
+	}
+
 return $length.$packed;
 }
 
@@ -1589,6 +1617,10 @@ my ( $number ) = shift;
 my ( $type ) = shift;
 my ( $data ) = shift;
 my ( $result ) = "";
+if ( $self->{_GLOBAL}{'DEBUG'}>4 )
+	{
+	print "Envelope encoding information Number '$number' type '$type'\n";
+	}
 my $envelope_main = $self->envelope_array( $number );
 $result.=$self->general_pack( $data, $envelope_main, $type );
 return $result;
@@ -2289,13 +2321,15 @@ sub timebase_set
 {
 my ( $self ) = shift;
 my ( $data ) = shift;
-my ( %test ) ;
-my ( $timer_encode );
-while (my($field, $val) = splice(@{$data}, 0, 2))
-	{ $test{$field}= $val }
-if ( $test{'TimeLimit'}>0 )
-	{ $timer_encode = $self->encode_time_limit( $test{'TimeLimit'} ); }
-$self->{_GLOBAL}{'TimeLimit'} = $timer_encode;
+if ( $self->{_GLOBAL}{'DEBUG'}> 4 )
+	{
+	print "Time set to '".$data."'\n";
+	}
+if ( $data > 0 )
+	{
+	my $timer_encode = $self->encode_time_limit( $data );
+	$self->{_GLOBAL}{'TimeLimit'} = $timer_encode;
+	}
 return 1;
 }
 
@@ -2310,20 +2344,18 @@ sub volume_set
 {
 my ( $self ) = shift;
 my ( $data ) = shift;
-my ( %test ) ;
-my ( $timer_encode );
-while (my($field, $val) = splice(@{$data}, 0, 2))
-	{ $test{$field}= $val }
-if ( $test{'VolumeLimit'}>0 )
-	{ $timer_encode = $self->encode_byte_limit( $test{'VolumeLimit'} ); }
-$self->{_GLOBAL}{'TimeLimit'} = $timer_encode;
+if ( $data>0 )
+	{ 
+	my $timer_encode = $self->encode_byte_limit( $data ); 
+	$self->{_GLOBAL}{'VolumeLimit'} = $timer_encode;
+	}
 return 1;
 }
 
 sub volume_clear
 {
 my ( $self ) = shift;
-$self->{_GLOBAL}{'TimeLimit'} = "";
+$self->{_GLOBAL}{'VolumeLimit'} = "";
 return 1;
 }
 
@@ -2340,7 +2372,7 @@ return "";
 sub volume_get
 {
 my ( $self ) = shift;
-if ( $self->{_GLOBAL}{'VolumeLimit'} )
+if ( length($self->{_GLOBAL}{'VolumeLimit'})>0 )
 	{
 	return $self->{_GLOBAL}{'VolumeLimit'};
 	}
@@ -2350,7 +2382,7 @@ return "";
 sub timebase_get
 {
 my ( $self ) = shift;
-if ( $self->{_GLOBAL}{'TimeLimit'} )
+if ( length($self->{_GLOBAL}{'TimeLimit'})>0 )
 	{
 	return $self->{_GLOBAL}{'TimeLimit'};
 	}
@@ -2569,6 +2601,7 @@ my ( @envelopes ) =
 			# 7-2
 			# A little unsure here.
 			[
+				"ServiceClassName"
 			],
 			# 7-3
 			[
@@ -2581,8 +2614,10 @@ my ( @envelopes ) =
 				"Maximum Traffic Burst",
 				"Minimum Reserved Traffic Rate",
 				"Assumed Minimum Reserved Traffic Rate Packet Size",
-				"Reserved1Byte",
-				"Reserved1Byte"
+				"Maximum Concatenated Burst",
+				"Required Attribute Mask",
+				"Forbidden Attribute Mask",
+				"Attribute Aggregation Rule Mask"
 			],
 			# 7-4
 			[
@@ -2598,7 +2633,8 @@ my ( @envelopes ) =
 				"Maximum Concatenated Burst",
 				"Nominal Polling Interval",
 				"Required Attribute Mask",
-				"Forbidden Attribute Mask"
+				"Forbidden Attribute Mask",
+				"Attribute Aggregation Rule Mask"
 			],
 			# 7-5
 			[
@@ -2611,7 +2647,8 @@ my ( @envelopes ) =
 				"Nominal Polling Interval",
 				"Tolerated Poll Jitter",
 				"Required Attribute Mask",
-				"Forbidden Attribute Mask"
+				"Forbidden Attribute Mask",
+				"Attribute Aggregation Rule Mask"
 			],
 			# 7-6
 			[
@@ -2622,7 +2659,8 @@ my ( @envelopes ) =
 				"Nominal Grant Interval",
 				"Tolerated Grant Jitter",
 				"Required Attribute Mask",
-				"Forbidden Attribute Mask"
+				"Forbidden Attribute Mask",
+				"Attribute Aggregation Rule Mask"
 			],
 			# 7-7
 			[
@@ -2633,7 +2671,10 @@ my ( @envelopes ) =
 				"Nominal Grant Interval",
 				"Tolerated Grant Jitter",
 				"Nominal Polling Interval",
-				"Tolerated Poll Jitter"
+				"Tolerated Poll Jitter",
+				"Required Attribute Mask",
+				"Forbidden Attribute Mask",
+				"Attribute Aggregation Rule Mask"
 			],
 			# 7-8
 			[
@@ -2645,12 +2686,18 @@ my ( @envelopes ) =
 				"Maximum Traffic Burst",
 				"Minimum Reserved Traffic Rate",
 				"Assumed Minimum Reserved Traffic Rate Packet Size",
-				"Reserved1Byte",
-				"Reserved1Byte",
-				"Maximum Downstream Latency"
+				"Maximum Downstream Latency",
+				"Downstream Peak Traffic Rate",
+				"Required Attribute Mask",
+				"Forbidden Attribute Mask",
+				"Attribute Aggregation Rule Mask"
 			]
 
 		);
+if ($self->{_GLOBAL}{'DEBUG'}> 4 )
+	{
+	print "Returning envelope array number '$part'\n";
+	}
 return \$envelopes[$part];
 }
 
@@ -2662,6 +2709,8 @@ my ( $attribute ) = shift;
 my ( %attributes ) =
 		(
 		"Assumed Minimum Reserved Traffic Rate Packet Size" 	=> 'n',
+		"Downstream Peak Traffic Rate"				=> 'N',
+		"Attribute Aggregation Rule Mask"			=> 'N',
 		"Forbidden Attribute Mask"				=> 'N',
 		"Grants Per Interval"					=> 'C',
 		"Maximum Concatenated Burst"				=> 'n',
@@ -3259,7 +3308,7 @@ foreach my $env_c ( @{${$array_pointer}} )
 			}
 			else
 			{
-			if ( $env_c=~/IP/ )
+			if ( ($env_c=~/IP/ ) && ( $env_c!~/IPProtocolId/))
 				{
 				$type_v = $self->_IpQuadToInt(${$data}{$type_push});
 				}
